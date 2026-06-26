@@ -53,6 +53,25 @@ SELECT * FROM read_csv_auto('/data/yourfile.csv');
 CREATE TABLE nums AS SELECT * FROM range(10) t(n);
 ```
 
+### DuckDB web UI
+
+DuckDB ships a notebook-style browser UI. Launch it on demand:
+
+```bash
+docker compose run --rm --service-ports duckdb-ui
+```
+
+Then open **http://localhost:4213** (Ctrl-C in the terminal stops it). It opens
+the same `data/warehouse.duckdb` file as the CLI.
+
+> Why the extra `duckdb-ui` service? DuckDB's UI binds to IPv6 loopback
+> (`[::1]:4213`) *inside* the container, which Docker port-publishing can't
+> reach. The service ships a small `socat` bridge (`duckdb-ui.sh`) that forwards
+> `0.0.0.0:4213 → [::1]:4213` so the host can connect.
+>
+> Prefer no Docker for the UI? Install DuckDB on your Mac (`brew install duckdb`)
+> and run `duckdb -ui data/warehouse.duckdb` against the same file directly.
+
 ### Query Postgres directly from DuckDB
 
 DuckDB can attach the running Postgres instance — great for practicing the
@@ -83,7 +102,8 @@ JDBC reads/writes from Spark.
 ```
 .
 ├── docker-compose.yml     # postgres + adminer + duckdb (cli profile)
-├── Dockerfile.duckdb      # minimal image carrying the DuckDB CLI
+├── Dockerfile.duckdb      # minimal image carrying the DuckDB CLI + UI bridge
+├── duckdb-ui.sh           # exposes DuckDB's loopback-only web UI to the host
 ├── seed/                  # SQL run once on first Postgres init
 ├── data/                  # shared scratch (csv/parquet, warehouse.duckdb) — gitignored
 ├── build.sbt              # Scala/Spark build
@@ -95,6 +115,7 @@ JDBC reads/writes from Spark.
 ```bash
 docker compose up -d            # start postgres + adminer
 docker compose run --rm duckdb  # open a DuckDB shell
+docker compose run --rm --service-ports duckdb-ui   # DuckDB web UI at :4213
 docker compose ps               # see what's running
 docker compose down             # stop services (keeps data volume)
 docker compose down -v          # stop AND wipe Postgres data + re-seed next time

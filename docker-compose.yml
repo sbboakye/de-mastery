@@ -64,8 +64,29 @@ services:
     command: ["/data/warehouse.duckdb"]
     stdin_open: true
     tty: true
-    networks:
-      - default
+
+  # ---------------------------------------------------------------------------
+  # DuckDB web UI — a notebook-style browser interface for the same database.
+  # DuckDB's UI binds to IPv6 loopback only, so we ship a socat bridge (see
+  # duckdb-ui.sh) to make it reachable from the host. Launch on demand:
+  #
+  #     docker compose run --rm --service-ports duckdb-ui
+  #
+  # then open http://localhost:4213  (Ctrl-C to stop).
+  # ---------------------------------------------------------------------------
+  duckdb-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.duckdb
+    container_name: de-duckdb-ui
+    profiles: ["cli"]            # excluded from `docker compose up`
+    entrypoint: ["duckdb-ui"]
+    command: ["/data/warehouse.duckdb"]
+    working_dir: /data
+    volumes:
+      - ./data:/data
+    ports:
+      - "4213:4213"
 
 volumes:
   pgdata:
