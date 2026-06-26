@@ -1,0 +1,71 @@
+name: de-mastery
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — an always-on, client/server SQL database.
+  # Connect from the host on localhost:5432, or use the Adminer GUI below.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16
+    container_name: de-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: de
+      POSTGRES_PASSWORD: de
+      POSTGRES_DB: de_mastery
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Anything in ./seed runs once on first init (alphabetical order).
+      - ./seed:/docker-entrypoint-initdb.d:ro
+      # Shared scratch space — same folder DuckDB sees, for moving files around.
+      - ./data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U de -d de_mastery"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Adminer — a lightweight web SQL client. Open http://localhost:8088
+  # System: PostgreSQL | Server: postgres | User: de | Pass: de | DB: de_mastery
+  # ---------------------------------------------------------------------------
+  adminer:
+    image: adminer:4
+    container_name: de-adminer
+    restart: unless-stopped
+    ports:
+      - "8088:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # DuckDB — an EMBEDDED database (no server process). This container just
+  # carries the DuckDB CLI. It is NOT started by `up`; you launch it on demand:
+  #
+  #     docker compose run --rm duckdb
+  #
+  # It opens ./data/warehouse.duckdb so your work persists between sessions,
+  # and it can read CSV/Parquet from ./data and even query Postgres directly
+  # (via the built-in postgres extension — see README).
+  # ---------------------------------------------------------------------------
+  duckdb:
+    build:
+      context: .
+      dockerfile: Dockerfile.duckdb
+    container_name: de-duckdb
+    profiles: ["cli"]            # excluded from `docker compose up`
+    working_dir: /data
+    volumes:
+      - ./data:/data
+    # Persisted DB file lives in the shared ./data volume.
+    command: ["/data/warehouse.duckdb"]
+    stdin_open: true
+    tty: true
+    networks:
+      - default
+
+volumes:
+  pgdata:

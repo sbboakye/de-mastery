@@ -1,0 +1,2 @@
+# Shared scratch folder mounted into both postgres (/data) and duckdb (/data).
+# Drop CSV / Parquet files here to load them; warehouse.duckdb is created here.
